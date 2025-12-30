@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>עיצוב המשחק</title>
+    {% from "google_maps.html" import google_maps_script with context %}
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/shared.css') }}">
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            scrollbar-gutter: stable; /* prevent horizontal jitter when scrollbars appear */
+        }
+
+        body {
+            background: #f5f5f5;
+        }
+
+        #container {
+            max-width: 100%;
+            width: 100%;
+            margin: 0 auto;
+            padding: clamp(12px, 3vw, 24px);
+            padding-inline-start: 170px; /* leave room for toolbar */
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: clamp(1.4rem, 1vw + 1.1rem, 1.9rem);
+        }
+
+        .small-note {
+            font-size: clamp(0.85rem, 0.6vw + 0.7rem, 0.95rem);
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        /* Layout: riddles list + map side-by-side on desktop, stacked on mobile */
+        #layout {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        #riddles-panel {
+            flex: 1 1 360px; /* keep riddles width as-is */
+            min-width: 280px;
+            box-sizing: border-box;
+        }
+
+        #map-panel {
+            flex: 1.5 1 520px;
+            min-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: sticky;
+            top: 170px; /* keep clear of sticky header/tabs */
+            align-self: flex-start;
+            box-sizing: border-box;
+        }
+
+        #map-title {
+            font-weight: bold;
+            font-size: clamp(0.95rem, 0.7vw + 0.8rem, 1.1rem);
+        }
+
+        #map {
+            width: 100%;
+            height: 580px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        @media (max-width: 700px) {
+            #map {
+                height: 320px;
+            }
+        }
+
+        #map-search {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #map-search input {
+            flex: 1 1 220px;
+            min-width: 220px;
+            padding: 8px 10px;
+            font-size: clamp(0.9rem, 0.7vw + 0.75rem, 1rem);
+            border-radius: 10px;
+            border: 1px solid #c4c9d1;
+            box-sizing: border-box;
+        }
+
+        /* Resizable divider */
+        #panel-resizer {
+            flex: 0 0 10px;
+            cursor: col-resize;
+            background: linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.08), rgba(0,0,0,0.06));
+            border-radius: 8px;
+            min-height: 100%;
+        }
+
+        @media (max-width: 900px) {
+            #panel-resizer {
+                display: none;
+            }
+            #map-panel {
+                position: static;
+            }
+            #layout {
+                flex-direction: column;
+                flex-wrap: nowrap;
+            }
+        }
+
+        /* Sticky header for title + tabs + explainer */
+        #sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 950;
+            background: #f5f5f5;
+            padding: 8px 0 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .tab-panels {
+            padding-top: 10px; /* space so content is not hidden under sticky header */
+        }
+
+        #tab-explainer {
+            margin-top: 4px;
+        }
+
+        /* Simple tab bar for editor sections */
+        #tabs {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0 16px;
+            flex-wrap: wrap;
+        }
+
+        #tabs .tab {
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid #c4c9d1;
+            background: #f6f8fb;
+            cursor: pointer;
+            font-size: clamp(0.9rem, 0.7vw + 0.7rem, 1rem);
+        }
+
+        #tabs .tab.active {
+            background: linear-gradient(140deg, #8fc0ff, #4a7ed1);
+            color: #0f2642;
+            border-color: #3563a6;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Landing page editor */
+        #landing-form {
+            max-width: 780px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #ffffff;
+            padding: 14px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            box-sizing: border-box;
+        }
+
+        #landing-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: clamp(0.9rem, 0.7vw + 0.7rem, 1rem);
+        }
+
+        #landing-form input[type="text"] {
+            font-size: clamp(0.95rem, 0.7vw + 0.75rem, 1.05rem);
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #c4c9d1;
+            box-sizing: border-box;
+        }
+
+        #landing-form textarea {
+            min-height: 140px;
+        }
+
+        /* Floating toolbar */
+        #toolbar {
+            position: fixed;
+            top: 120px;
+            inset-inline-start: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            width: 140px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #7a828c;
+            background: linear-gradient(145deg, #f6f8fb, #cfd6df);
+            color: #1f2b35;
+            font-size: clamp(0.9rem, 0.7vw + 0.7rem, 1rem);
+            cursor: pointer;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 6px 14px rgba(0, 0, 0, 0.08);
+            transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+        }
+
+        .toolbar-btn:hover {
+            background: linear-gradient(145deg, #ffffff, #d9e0e7);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                0 3px 8px rgba(0, 0, 0, 0.18),
+                0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(1px);
+            box-shadow:
+                inset 0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        @media (max-width: 720px) {
+            #container {
+                padding-inline-start: 170px; /* keep clear of toolbar on small screens */
+            }
+            #toolbar {
+                top: 90px;
+                inset-inline-start: 8px;
+            }
+            .toolbar-btn {
+                width: 128px;
+            }
+            #map-panel {
+                position: static;
+            }
+        }
+
+        .riddle-card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: clamp(10px, 2vw, 14px);
+            margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            box-sizing: border-box;
+        }
+
+        .riddle-card.selected {
+            border: 2px solid #4d96ff;
+        }
+
+        .riddle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .riddle-index {
+            font-weight: bold;
+            font-size: clamp(0.95rem, 0.7vw + 0.8rem, 1.05rem);
+        }
+
+        .riddle-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .riddle-actions button {
+            padding: 4px 8px;
+            font-size: clamp(0.75rem, 0.5vw + 0.7rem, 0.9rem);
+            cursor: pointer;
+            border-radius: 999px;
+            border: 1px solid #ccc;
+            background: #fff;
+            white-space: nowrap;
+        }
+
+        textarea {
+            width: 100%;
+            resize: vertical;
+            min-height: 60px;
+            margin-bottom: 6px;
+            font-size: clamp(0.9rem, 0.7vw + 0.7rem, 1rem);
+            box-sizing: border-box;
+        }
+
+        .coords-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .coords-row label {
+            font-size: clamp(0.8rem, 0.6vw + 0.7rem, 0.95rem);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .coords-row input {
+            width: 130px;
+            max-width: 40vw;
+            font-size: clamp(0.85rem, 0.6vw + 0.7rem, 0.95rem);
+            box-sizing: border-box;
+        }
+
+        #buttons-row {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        #buttons-row button {
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: clamp(0.85rem, 0.7vw + 0.7rem, 1rem);
+        }
+
+        #add-riddle-btn {
+            background: #ffd93d;
+            color: #333;
+        }
+
+        #buttons-row button:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 600px) {
+            .coords-row input {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+
+        /* Metallic button styling */
+        button {
+            background: linear-gradient(145deg, #f6f8fb, #cfd6df);
+            color: #1f2b35;
+            border: 1px solid #7a828c;
+            border-radius: 999px;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 6px 14px rgba(0, 0, 0, 0.08);
+            transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+        }
+
+        button:hover {
+            background: linear-gradient(145deg, #ffffff, #d9e0e7);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                0 3px 8px rgba(0, 0, 0, 0.18),
+                0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow:
+                inset 0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Keep special buttons tinted but metallic */
+        #add-riddle-btn {
+            background: linear-gradient(140deg, #fdf1b5, #d7b84f);
+            border-color: #b89a3e;
+            color: #3c2c0d;
+        }
+</style>
+</head>
+<body>
+<div class="lang-toggle">
+    <button type="button" data-lang-toggle="he">עברית</button>
+    <button type="button" data-lang-toggle="en">English</button>
+</div>
+<img id="site-logo" src="{{ url_for('static', filename='assets/logos/RoiAndNa_logo.png') }}">
+<div id="toolbar">
+    <button id="toolbar-save" class="toolbar-btn">שמור הכל</button>
+    <button id="toolbar-back" class="toolbar-btn" onclick="location.href='/'">חזרה לאתר</button>
+</div>
+<div id="container">
+    <div id="sticky-header">
+        <h1 id="page-heading">עיצוב - חידות</h1>
+        <div id="tabs">
+            <button class="tab active" data-tab="riddles">חידות</button>
+            <button class="tab" data-tab="landing">דף נחיתה</button>
+            <button class="tab" data-tab="ending">התראות</button>
+        </div>
+        <p id="tab-explainer" class="small-note"></p>
+    </div>
+
+    <div class="tab-panels">
+        <div class="tab-panel active" data-tab="riddles">
+            <div id="layout">
+                <!-- Riddles panel -->
+                <div id="riddles-panel">
+                    <div id="riddles-list"></div>
+
+                    <div id="buttons-row">
+                        <button id="add-riddle-btn">הוספת חידה חדשה</button>
+                    </div>
+                </div>
+
+                <div id="panel-resizer" aria-label="Resize panels"></div>
+
+                <!-- Map panel -->
+                <div id="map-panel">
+                    <div id="map-title">בחרו מיקום על המפה</div>
+                    <div id="map-search">
+                        <input id="map-search-input" type="text" placeholder="חיפוש כתובת או מקום...">
+                    </div>
+                    <div id="map"></div>
+                    <p class="small-note">
+                        ניתן לחפש רחובות (בעברית ,אנגלית וכו') או לבחור על המפה את המיקום המדויק.
+                        בסיום כל שינוי אל תשכחו לשמור (כפתור שמירה).
+                    </p>
+                </div>
+            </div>
+
+            <p class="small-note">
+                טיפ קטן: גררו וסדרו, רשמו וסמנו כדי להתאים את החידות. אל תשכחו לשמור בסוף.
+            </p>
+        </div>
+
+        <div class="tab-panel" data-tab="landing">
+            <div id="landing-form">
+                <label>
+                    כותרת דף נחיתה:
+                    <input id="landing-title-input" type="text" placeholder="לדוגמה: ברוכים הבאים">
+                </label>
+                <label>
+                    טקסט פתיחה:
+                    <textarea id="landing-subtitle-input" placeholder="הטקסט שמופיע בדף הנחיתה"></textarea>
+                </label>
+            </div>
+            <p class="small-note">
+                שנו כאן את הטקסטים של הדף הפותח.
+            </p>
+        </div>
+
+        <div class="tab-panel" data-tab="ending">
+            <div id="ending-form">
+                <label>
+                    הודעת סיום המשחק:
+                    <textarea id="ending-body-input" placeholder="הטקסט שיוצג כשהמטמון נמצא" rows="8"></textarea>
+                </label>
+                <div id="success-messages">
+                    <p class="small-note">ערכו כאן את הודעות ההצלחה והצליל הצמוד לכל הודעה:</p>
+                    <div id="success-list"></div>
+                    <button id="add-success-btn" type="button">הוספת הודעת הצלחה</button>
+                </div>
+            </div>
+            <p class="small-note">
+                שנו כאן את טקסט סיום המשחק ואת הודעות הביניים.
+            </p>
+        </div>
+    </div>
+</div>
+<script>
+    // Riddles initial data from Flask
+    const initialRiddles = {{ riddles_json | safe }};
+    let riddles = JSON.parse(JSON.stringify(initialRiddles));
+    const landingContent = {{ landing_content_json | safe }};
+
+    let map = null;
+    let selectedIndex = null;
+    let activeMarker = null;
+    let activeCircle = null;
+    let autocomplete = null;
+
+    // ---------- Tabs ----------
+
+    const tabs = document.querySelectorAll('#tabs .tab');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    const toolbarSaveBtn = document.getElementById("toolbar-save");
+    const toolbarBackBtn = document.getElementById("toolbar-back");
+    const headingEl = document.getElementById("page-heading");
+    const tabExplainer = document.getElementById("tab-explainer");
+    const resizer = document.getElementById("panel-resizer");
+    const riddlesPanel = document.getElementById("riddles-panel");
+    const mapPanel = document.getElementById("map-panel");
+    const layoutEl = document.getElementById("layout");
+    const mapEl = document.getElementById("map");
+    const isRTL = () => (document.documentElement.getAttribute("dir") || "").toLowerCase() === "rtl";
+    let lastKnownCenter = null;
+    let lastKnownZoom = null;
+
+    const tabLabels = { landing: "דף פתיחה", ending: "התראות", riddles: "חידות" };
+    tabs.forEach((tab) => {
+        const key = tab.getAttribute("data-tab");
+        if (tabLabels[key]) {
+            tab.textContent = tabLabels[key];
+        }
+        tab.addEventListener('click', () => {
+            const target = tab.getAttribute('data-tab');
+            tabs.forEach((btn) => btn.classList.toggle('active', btn === tab));
+            tabPanels.forEach((panel) => {
+                panel.classList.toggle('active', panel.getAttribute('data-tab') === target);
+            });
+            updateHeading();
+        });
+    });
+
+    const getActiveTab = () => {
+        const active = document.querySelector('#tabs .tab.active');
+        return active ? active.getAttribute('data-tab') : 'riddles';
+    };
+
+    const updateHeading = () => {
+        if (!headingEl) return;
+        const active = getActiveTab();
+        if (active === "landing") {
+            headingEl.textContent = "עיצוב - דף נחיתה";
+        } else if (active === "ending") {
+            headingEl.textContent = "עיצוב - התראות";
+        } else {
+            headingEl.textContent = "עיצוב - חידות";
+        }
+        if (tabExplainer) {
+            if (active === "landing") {
+                tabExplainer.textContent = "ערכו את הכותרת והטקסט בדף הנחיתה.";
+            } else if (active === "ending") {
+                tabExplainer.textContent = "הגדירו את הודעת הסיום והצלילים.";
+            } else {
+                tabExplainer.textContent = "כתבו חידות, מיקומים וטולרנסים (מטרים).";
+            }
+        }
+    };
+
+    // Keep Google Maps in sync with container resizes
+    let refreshPending = false;
+
+    const rememberMapView = () => {
+        if (!map) return;
+        lastKnownCenter = map.getCenter() || lastKnownCenter;
+        const currentZoom = map.getZoom();
+        if (typeof currentZoom === "number") {
+            lastKnownZoom = currentZoom;
+        }
+    };
+
+    const refreshMapSize = () => {
+        if (!map) return;
+        const center = map.getCenter() || lastKnownCenter;
+        const zoom = typeof map.getZoom() === "number" ? map.getZoom() : lastKnownZoom;
+        console.log("[design.html] refreshMapSize center/zoom", {
+            center: center && typeof center.toJSON === "function" ? center.toJSON() : center,
+            zoom: zoom,
+            mapPanelSize: (() => {
+                const rect = mapPanel && mapPanel.getBoundingClientRect ? mapPanel.getBoundingClientRect() : null;
+                return rect ? { w: rect.width, h: rect.height } : null;
+            })()
+        });
+        google.maps.event.trigger(map, "resize");
+        if (center) map.setCenter(center);
+        if (typeof zoom === "number") map.setZoom(zoom);
+        updateMapForSelectedRiddle();
+    };
+
+    const scheduleMapRefresh = () => {
+        if (refreshPending) return;
+        refreshPending = true;
+        requestAnimationFrame(() => {
+            refreshPending = false;
+            refreshMapSize();
+            setTimeout(refreshMapSize, 50);
+        });
+    };
+
+    if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(() => {
+            scheduleMapRefresh();
+        });
+        if (mapEl) resizeObserver.observe(mapEl);
+        if (mapPanel) resizeObserver.observe(mapPanel);
+    } else {
+        window.addEventListener("resize", scheduleMapRefresh);
+    }
+
+    // ---------- Panel resizer ----------
+    if (resizer && riddlesPanel && mapPanel) {
+        let isDragging = false;
+
+        const startDrag = (e) => {
+            isDragging = true;
+            document.body.style.userSelect = "none";
+            document.body.style.cursor = "col-resize";
+        };
+
+        const onDrag = (e) => {
+            if (!isDragging || !layoutEl) return;
+            const containerRect = layoutEl.getBoundingClientRect();
+            const rtl = isRTL();
+            const offsetX = rtl
+                ? (containerRect.right - e.clientX)
+                : (e.clientX - containerRect.left);
+            const minRiddles = 280;
+            const minMap = 360;
+            const available = containerRect.width - resizer.offsetWidth;
+
+            // If screen is too narrow, keep defaults
+            if (available < minRiddles + minMap) {
+                riddlesPanel.style.flex = "";
+                mapPanel.style.flex = "";
+                return;
+            }
+
+            const clampedRiddles = Math.max(minRiddles, Math.min(offsetX, available - minMap));
+            const newMapWidth = Math.max(minMap, available - clampedRiddles);
+            const safeRiddles = Math.max(minRiddles, available - newMapWidth);
+
+            riddlesPanel.style.flex = `0 0 ${safeRiddles}px`;
+            mapPanel.style.flex = `0 0 ${newMapWidth}px`;
+        };
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            document.body.style.userSelect = "";
+            document.body.style.cursor = "";
+            
+            const mapRect = mapPanel?.getBoundingClientRect();
+            const riddlesRect = riddlesPanel?.getBoundingClientRect();
+            const layoutRect = layoutEl?.getBoundingClientRect();
+            console.log("[design.html] endDrag sizes", {
+            mapW: mapRect?.width,
+            mapH: mapRect?.height,
+            riddlesW: riddlesRect?.width,
+            riddlesH: riddlesRect?.height,
+            layoutW: layoutRect?.width
+            });
+
+            // After resize, force map to redraw if it exists (async to let layout settle)
+            scheduleMapRefresh();
+        };
+
+        resizer.addEventListener("mousedown", startDrag);
+        window.addEventListener("mousemove", onDrag);
+        window.addEventListener("mouseup", endDrag);
+        resizer.addEventListener("touchstart", (e) => {
+            startDrag(e.touches[0]);
+        }, { passive: true });
+        window.addEventListener("touchmove", (e) => {
+            onDrag(e.touches[0]);
+            e.preventDefault();
+        }, { passive: false });
+        window.addEventListener("touchend", endDrag);
+        window.addEventListener("touchcancel", endDrag);
+    }
+
+    // ---------- Landing page text editor ----------
+
+    const landingTitleInput = document.getElementById("landing-title-input");
+    const landingSubtitleInput = document.getElementById("landing-subtitle-input");
+    const endingTitleInput = document.getElementById("ending-title-input");
+    const endingBodyInput = document.getElementById("ending-body-input");
+    const successListEl = document.getElementById("success-list");
+    const addSuccessBtn = document.getElementById("add-success-btn");
+    const mapSearchInput = document.getElementById("map-search-input");
+    const successMessages = Array.isArray(landingContent.success_messages)
+        ? landingContent.success_messages.map((m) => ({
+            text: m && m.text ? m.text : "",
+            sound: m && m.sound ? m.sound : ""
+        }))
+        : [];
+    if (successMessages.length === 0) {
+        successMessages.push({ text: "", sound: "success1.m4a" });
+    }
+
+    function uploadSoundFile(index, file) {
+        if (!file) return;
+        const formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/upload-sound", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                successMessages[index].sound = data.filename;
+                const soundInput = successListEl?.querySelector(`input[data-field="sound"][data-index="${index}"]`);
+                if (soundInput) soundInput.value = data.filename;
+                alert("קובץ הועלה ונשמר בתור הצליל להודעה הזו.");
+            } else {
+                alert("שגיאה בהעלאת הקובץ: " + (data.error || ""));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("שגיאה בהעלאת הקובץ.");
+        });
+    }
+
+    if (landingTitleInput) {
+        landingTitleInput.value = landingContent.headline || "";
+    }
+    if (landingSubtitleInput) {
+        landingSubtitleInput.value = landingContent.subtitle || "";
+    }
+    if (endingTitleInput) {
+        endingTitleInput.value = landingContent.ending_title || "";
+    }
+    if (endingBodyInput) {
+        endingBodyInput.value = landingContent.treasure_message || "";
+    }
+
+    function renderSuccessMessages() {
+        if (!successListEl) return;
+        successListEl.innerHTML = "";
+        successMessages.forEach((msg, idx) => {
+            const row = document.createElement("div");
+            row.className = "success-row";
+            row.innerHTML = `
+                <label>טקסט:
+                    <input type="text" data-field="text" data-index="${idx}" value="${msg.text || ""}">
+                </label>
+                <label>צליל (שם קובץ):
+                    <input type="text" data-field="sound" data-index="${idx}" value="${msg.sound || ""}">
+                </label>
+                <label>בחרו קובץ צליל מהמחשב:
+                    <input type="file" accept="audio/*" data-field="file" data-index="${idx}">
+                </label>
+                <button type="button" data-action="remove" data-index="${idx}">מחק</button>
+            `;
+            row.querySelectorAll('input[type="text"]').forEach((input) => {
+                input.addEventListener("input", () => {
+                    const field = input.getAttribute("data-field");
+                    const index = parseInt(input.getAttribute("data-index"), 10);
+                    successMessages[index][field] = input.value;
+                });
+            });
+            const removeBtn = row.querySelector('[data-action="remove"]');
+            removeBtn.addEventListener("click", () => {
+                successMessages.splice(idx, 1);
+                renderSuccessMessages();
+            });
+            const fileInput = row.querySelector('input[data-field="file"]');
+            if (fileInput) {
+                fileInput.addEventListener("change", () => {
+                    const file = fileInput.files && fileInput.files[0];
+                    if (file) uploadSoundFile(idx, file);
+                });
+            }
+            successListEl.appendChild(row);
+        });
+    }
+
+    if (addSuccessBtn) {
+        addSuccessBtn.addEventListener("click", () => {
+            successMessages.push({ text: "", sound: "" });
+            renderSuccessMessages();
+        });
+    }
+
+    renderSuccessMessages();
+
+    // ---------- Map helpers ----------
+
+    function updateMapForSelectedRiddle() {
+        if (selectedIndex === null || !map) return;
+        const r = riddles[selectedIndex];
+
+        if (typeof r.lat !== "number" || typeof r.lng !== "number" || isNaN(r.lat) || isNaN(r.lng)) {
+            return;
+        }
+
+        const center = { lat: r.lat, lng: r.lng };
+        const tolerance = (typeof r.tolerance_m === "number" && !isNaN(r.tolerance_m)) ? r.tolerance_m : 200;
+
+        map.setCenter(center);
+        map.setZoom(15);
+        rememberMapView();
+
+        if (!activeMarker) {
+            activeMarker = new google.maps.Marker({
+                position: center,
+                map: map
+            });
+        } else {
+            activeMarker.setPosition(center);
+        }
+
+        if (!activeCircle) {
+            activeCircle = new google.maps.Circle({
+                map: map,
+                center: center,
+                radius: tolerance,
+                strokeColor: "#4d96ff",
+                strokeOpacity: 0.7,
+                strokeWeight: 1,
+                fillColor: "#4d96ff",
+                fillOpacity: 0.1
+            });
+        } else {
+            activeCircle.setCenter(center);
+            activeCircle.setRadius(tolerance);
+        }
+    }
+
+    function handleMapClick(latLng) {
+        if (selectedIndex === null) {
+            alert("קודם בחרו חידה מהרשימה (כפתור „עריכה במפה”).");
+            return;
+        }
+
+        const r = riddles[selectedIndex];
+        r.lat = latLng.lat();
+        r.lng = latLng.lng();
+
+        // Update the inputs in the corresponding card
+        const card = document.querySelector('.riddle-card[data-index="' + selectedIndex + '"]');
+        if (card) {
+            const latInput = card.querySelector('input[data-field="lat"]');
+            const lngInput = card.querySelector('input[data-field="lng"]');
+            if (latInput) latInput.value = r.lat.toFixed(6);
+            if (lngInput) lngInput.value = r.lng.toFixed(6);
+        }
+
+        updateMapForSelectedRiddle();
+    }
+
+    // ---------- Map init (called by Google callback) ----------
+
+    function initDesignMap() {
+        let defaultCenter = { lat: 32.0853, lng: 34.7818 }; // Tel Aviv as fallback
+
+        if (riddles.length > 0 && typeof riddles[0].lat === "number" && typeof riddles[0].lng === "number") {
+            defaultCenter = { lat: riddles[0].lat, lng: riddles[0].lng };
+        }
+
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: defaultCenter,
+            zoom: 13
+        });
+        rememberMapView();
+        map.addListener("idle", rememberMapView);
+
+        if (mapSearchInput) {
+            autocomplete = new google.maps.places.Autocomplete(mapSearchInput, {
+                fields: ["geometry", "name", "formatted_address"]
+            });
+            autocomplete.addListener("place_changed", () => {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) {
+                    alert("לא נמצאה כתובת מתאימה.");
+                    return;
+                }
+                const loc = place.geometry.location;
+                map.setCenter(loc);
+                map.setZoom(15);
+
+                if (selectedIndex === null && riddles.length > 0) {
+                    selectedIndex = 0;
+                    renderRiddles();
+                }
+                if (selectedIndex !== null) {
+                    const r = riddles[selectedIndex];
+                    r.lat = loc.lat();
+                    r.lng = loc.lng();
+
+                    // sync inputs
+                    const card = document.querySelector('.riddle-card[data-index="' + selectedIndex + '"]');
+                    if (card) {
+                        const latInput = card.querySelector('input[data-field="lat"]');
+                        const lngInput = card.querySelector('input[data-field="lng"]');
+                        if (latInput) latInput.value = r.lat.toFixed(6);
+                        if (lngInput) lngInput.value = r.lng.toFixed(6);
+                    }
+                    updateMapForSelectedRiddle();
+                }
+            });
+        }
+
+        map.addListener("click", (e) => {
+            handleMapClick(e.latLng);
+        });
+
+        // Optionally pre-select the first riddle
+        if (riddles.length > 0) {
+            selectedIndex = 0;
+            renderRiddles();
+            updateMapForSelectedRiddle();
+        } else {
+            renderRiddles();
+        }
+    }
+
+    // ---------- Riddles rendering & logic ----------
+
+    function renderRiddles() {
+        const list = document.getElementById("riddles-list");
+        list.innerHTML = "";
+
+        riddles.forEach((r, index) => {
+            const card = document.createElement("div");
+            card.className = "riddle-card";
+            card.dataset.index = index;
+
+            if (index === selectedIndex) {
+                card.classList.add("selected");
+            }
+
+            card.innerHTML = `
+                <div class="riddle-header">
+                    <div class="riddle-index">חידה ${index + 1}</div>
+                    <div class="riddle-actions">
+                        <button data-action="up">למעלה</button>
+                        <button data-action="down">למטה</button>
+                        <button data-action="delete">מחיקה</button>
+                    </div>
+                </div>
+                <textarea data-field="text">${r.text || ""}</textarea>
+                <div class="coords-row">
+                    <label>
+                        קו רוחב (lat):
+                        <input type="number" step="0.000001" data-field="lat" value="${typeof r.lat === "number" ? r.lat : ""}">
+                    </label>
+                    <label>
+                        קו אורך (lng):
+                        <input type="number" step="0.000001" data-field="lng" value="${typeof r.lng === "number" ? r.lng : ""}">
+                    </label>
+                    <label>
+                        טולרנס (מטרים):
+                        <input type="number" step="1" data-field="tolerance_m" value="${r.tolerance_m || 200}">
+                    </label>
+                </div>
+            `;
+
+            // Clicking the card selects the riddle and updates the map
+            card.addEventListener("click", (e) => {
+                if (e.target && e.target.closest(".riddle-actions")) return;
+                selectedIndex = index;
+                renderRiddles();
+                updateMapForSelectedRiddle();
+            });
+
+            // Actions
+            const actionsDiv = card.querySelector(".riddle-actions");
+
+            // Move up
+            actionsDiv.querySelector('[data-action="up"]').addEventListener("click", () => {
+                if (index > 0) {
+                    const tmp = riddles[index - 1];
+                    riddles[index - 1] = riddles[index];
+                    riddles[index] = tmp;
+                    if (selectedIndex === index) {
+                        selectedIndex = index - 1;
+                    } else if (selectedIndex === index - 1) {
+                        selectedIndex = index;
+                    }
+                    renderRiddles();
+                    updateMapForSelectedRiddle();
+                }
+            });
+
+            // Move down
+            actionsDiv.querySelector('[data-action="down"]').addEventListener("click", () => {
+                if (index < riddles.length - 1) {
+                    const tmp = riddles[index + 1];
+                    riddles[index + 1] = riddles[index];
+                    riddles[index] = tmp;
+                    if (selectedIndex === index) {
+                        selectedIndex = index + 1;
+                    } else if (selectedIndex === index + 1) {
+                        selectedIndex = index;
+                    }
+                    renderRiddles();
+                    updateMapForSelectedRiddle();
+                }
+            });
+
+            // Delete
+            actionsDiv.querySelector('[data-action="delete"]').addEventListener("click", () => {
+                if (confirm("למחוק חידה זו?")) {
+                    riddles.splice(index, 1);
+                    if (selectedIndex === index) {
+                        selectedIndex = null;
+                    } else if (selectedIndex > index) {
+                        selectedIndex -= 1;
+                    }
+                    renderRiddles();
+                    updateMapForSelectedRiddle();
+                }
+            });
+
+            // Inputs: text + coords
+            card.querySelectorAll("textarea, input").forEach(input => {
+                // Prevent card click from re-rendering while editing
+                ["click", "mousedown"].forEach(evtName => {
+                    input.addEventListener(evtName, (e) => e.stopPropagation());
+                });
+
+                input.addEventListener("input", () => {
+                    const field = input.getAttribute("data-field");
+                    let value = input.value;
+
+                    if (field === "lat" || field === "lng" || field === "tolerance_m") {
+                        value = parseFloat(value);
+                    }
+
+                    riddles[index][field] = value;
+
+                    // If the selected riddle is changed, update the map circle/marker
+                    if (index === selectedIndex && (field === "lat" || field === "lng" || field === "tolerance_m")) {
+                        updateMapForSelectedRiddle();
+                    }
+                });
+            });
+
+            list.appendChild(card);
+        });
+
+        if (typeof window !== "undefined" && window.thRefreshTranslations) {
+            window.thRefreshTranslations();
+        }
+    }
+
+    document.getElementById("add-riddle-btn").addEventListener("click", () => {
+        riddles.push({
+            text: "חידה חדשה",
+            lat: 32.0853,
+            lng: 34.7818,
+            tolerance_m: 200
+        });
+        if (selectedIndex === null) selectedIndex = riddles.length - 1;
+        renderRiddles();
+        updateMapForSelectedRiddle();
+    });
+
+    function saveRiddles() {
+        fetch("/save-riddles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ riddles: riddles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert("נשמר בהצלחה!");
+            } else {
+                alert("שגיאה בשמירה: " + (data.error || ""));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("שגיאה בשמירה.");
+        });
+    }
+
+    function buildLandingPayload() {
+        return {
+            headline: landingTitleInput ? landingTitleInput.value : "",
+            subtitle: landingSubtitleInput ? landingSubtitleInput.value : "",
+            ending_title: endingTitleInput ? endingTitleInput.value : "",
+            treasure_message: endingBodyInput ? endingBodyInput.value : "",
+            success_messages: successMessages
+        };
+    }
+
+    function saveGameConfig() {
+        const payload = {
+            riddles: riddles,
+            landing: buildLandingPayload()
+        };
+
+        fetch("/save-game", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert("הכל נשמר בהצלחה!");
+            } else {
+                alert("שגיאה בשמירה: " + (data.error || ""));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("שגיאה בשמירה.");
+        });
+    }
+
+    if (toolbarSaveBtn) {
+        toolbarSaveBtn.addEventListener("click", () => {
+            saveGameConfig();
+        });
+    }
+
+    // Initial render (map will call initDesignMap → which calls renderRiddles again)
+    renderRiddles();
+    updateHeading();
+    if (typeof window !== "undefined" && window.thRefreshTranslations) {
+        window.thRefreshTranslations();
+    }
+</script>
+
+<!-- Google Maps JS API – same key you use on the game page -->
+<script src="{{ url_for('static', filename='translate.js') }}"></script>
+{{ google_maps_script("initDesignMap") }}
+
+</body>
+</html>

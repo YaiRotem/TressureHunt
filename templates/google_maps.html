@@ -1,0 +1,5 @@
+{% macro google_maps_script(callback) %}
+<script async
+    src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_KEY }}&callback={{ callback }}&language=he&region=IL&libraries=places">
+</script>
+{% endmacro %}

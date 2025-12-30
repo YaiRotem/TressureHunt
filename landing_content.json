@@ -1,0 +1,44 @@
+{
+  "headline": "חפש את המטמון",
+  "subtitle": "ברוכים הבאים למשחק החידות!\nהשתמשו ברמזים, נחשו את המיקומים על המפה ובנו יחד חוויה כיפית.\nאפשר לערוך את הטקסט הזה במסך העיצוב בכל רגע.",
+  "ending_title": "התראות",
+  "treasure_message": "🎉רועי ונתנאלה היקרים,\nהמסע שלכם הוכיח שכשהלב יודע את הדרך הכל מסתדר.\nעברתם יחד דרך מוסיקה, לימודים, צבא,אתגרים, שמחות וזיכרונות. וכל תחנה הובילה אתכם אל המקום שבו אתם בוחרים זה בזו מחדש.\n\nמברכים אתכם באהבה גדולה ובאין סוף רגעים יפים יחד,\nמעיין, ירדן, איתי, יאיר ועדי 🎉",
+  "success_messages": [
+    {
+      "text": "פגעתם בול בפוני!",
+      "sound": "success1.m4a"
+    },
+    {
+      "text": "כל הכבוד, תשובה מושלמת!",
+      "sound": "success2.m4a"
+    },
+    {
+      "text": "יפה מאוד! מצאתם את המקום המדויק!",
+      "sound": "success3.m4a"
+    },
+    {
+      "text": "מעולה! אתם ממש על זה!",
+      "sound": "success4.m4a"
+    },
+    {
+      "text": "קולעים למטרה כמו מקצוענים!",
+      "sound": "success5.m4a"
+    },
+    {
+      "text": "ניחוש מצוין - ממש בול במקום!",
+      "sound": "success6.m4a"
+    },
+    {
+      "text": "אלופים! הגעתם לנקודה המדויקת!",
+      "sound": "success7.m4a"
+    },
+    {
+      "text": "וואו! איזה דיוק!",
+      "sound": "success8.m4a"
+    },
+    {
+      "text": "תשובה נהדרת, ממש זוג מנצח!",
+      "sound": "success9.m4a"
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>הוראות המשחק</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/shared.css') }}">
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Ankolb", Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+        }
+
+        #container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: clamp(12px, 3vw, 24px);
+            box-sizing: border-box;
+        }
+
+        #card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: clamp(16px, 3vw, 24px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: clamp(1.6rem, 1vw + 1.3rem, 2.2rem);
+        }
+
+        ol {
+            padding-left: 1.2em;
+            font-size: clamp(1rem, 0.9vw + 0.85rem, 1.25rem);
+            line-height: 1.6;
+        }
+
+        li {
+            margin-bottom: 12px;
+        }
+
+        #actions-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        #audio-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .back-btn {
+            margin: 0;
+        }
+
+        @media (max-width: 600px) {
+            #card {
+                border-radius: 10px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+<div class="lang-toggle">
+    <button type="button" data-lang-toggle="he">עברית</button>
+    <button type="button" data-lang-toggle="en">English</button>
+</div>
+<img id="site-logo" src="{{ url_for('static', filename='assets/logos/RoiAndNa_logo.png') }}">
+<div id="container">
+    <div id="card">
+        <h1>הוראות המשחק</h1>
+        <ol>
+            <li>בכל שלב תופיע חידה שמכוונת למקום במפה.</li>
+            <li>אפשר להשתמש בשורת החיפוש כדי למצוא רחובות, ערים או נקודות מעניינות.</li>
+            <li>לחצו על המפה כדי לבחור את המקום שבו אתם חושבים שמסתתרת התשובה.</li>
+            <li>לחצו על הכפתור <b>„זה הניחוש שלי”</b> כדי לבדוק את התשובה.</li>
+            <li>אם צדקתם – תעברו לחידה הבאה. אם לא – תקבלו רמז על המרחק.</li>
+            <li>בסוף החידות, אם תגיעו למקום הנכון – תתגלה לכם תיבת המטמון 🎉</li>
+        </ol>
+
+        <div id="audio-actions">
+            <button class="btn-metal btn-blue back-btn" onclick="location.href='/'">חזרה לדף הראשי</button>
+            <button id="play-instructions-audio" class="btn-metal btn-gold">הקראת הוראות המשחק</button>
+        </div>
+
+        <audio id="instructions-audio" preload="auto">
+            <source src="{{ url_for('static', filename='assets/sounds/Instructions.m4a') }}" type="audio/mp4">
+        </audio>
+    </div>
+</div>
+<script>
+(function() {
+    const audio = document.getElementById("instructions-audio");
+    const fallback = document.getElementById("audio-actions");
+    const playButton = document.getElementById("play-instructions-audio");
+
+    function tryPlay() {
+        if (!audio) return Promise.resolve();
+        audio.currentTime = 0;
+        return audio.play();
+    }
+
+    tryPlay().catch(() => {
+        if (fallback) fallback.style.display = "block";
+    });
+
+    if (audio) {
+        audio.addEventListener("error", () => {
+            if (fallback) fallback.style.display = "block";
+        });
+    }
+
+    if (playButton) {
+        playButton.addEventListener("click", () => {
+            tryPlay();
+        });
+    }
+})();
+</script>
+<script src="{{ url_for('static', filename='translate.js') }}"></script>
+</body>
+</html>

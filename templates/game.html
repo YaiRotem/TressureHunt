@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>משחק מציאת המטמון</title>
+    {% from "google_maps.html" import google_maps_script with context %}
+
+    <!-- Important for phones/tablets -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/shared.css') }}">
+
+    <style>
+        /* Make body fill screen and avoid scrollbars where possible */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Main container uses full viewport height on any device */
+        #container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;   /* full screen height */
+            max-width: 100vw;    /* no horizontal overflow */
+            box-sizing: border-box;
+        }
+
+        /* Top bar with riddle + controls */
+        #top-bar {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 16px 16px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Collapsible riddle */
+        #riddle-panel {
+            position: relative;
+            transition: max-height 180ms ease, padding 180ms ease, margin 180ms ease,
+                        transform 200ms ease, opacity 180ms ease;
+        }
+        body.riddle-collapsed #riddle-panel {
+            max-height: 0;
+            padding: 0;
+            margin: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        @media (min-width: 700px) {
+            body.riddle-collapsed #riddle-panel { transform: translateX(40%); }
+        }
+        @media (max-width: 699px) {
+            body.riddle-collapsed #riddle-panel { transform: translateY(-30%); }
+        }
+
+        #riddle-toggle {
+            display: none;
+            flex-shrink: 0;
+            margin-inline-start: 8px;
+        }
+        body.riddle-collapsed #riddle-toggle {
+            display: inline-flex;
+        }
+
+        /* Reveal/hide animation */
+        .riddle-reveal {
+            animation: riddle-unroll 380ms ease;
+        }
+        @keyframes riddle-unroll {
+            0%   { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+            60%  { opacity: 1; transform: translateY(0) scaleY(1.015); }
+            100% { opacity: 1; transform: translateY(0) scaleY(1); }
+        }
+        .riddle-hide {
+            animation: riddle-rollup 320ms ease forwards;
+        }
+        @keyframes riddle-rollup {
+            0%   { opacity: 1; transform: translateY(0) scaleY(1); }
+            40%  { opacity: 0.7; transform: translateY(-3px) scaleY(0.99); }
+            100% { opacity: 0; transform: translateY(-8px) scaleY(0.94); }
+        }
+
+        /* Parchment scroll for the riddle text */
+        #riddle-box {
+            position: relative;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            background:
+                url("{{ url_for('static', filename='assets/images/scroll.png') }}") center center / cover no-repeat,
+                linear-gradient(145deg, rgba(249, 242, 220, 0.6) 0%, rgba(242, 229, 196, 0.6) 50%, rgba(239, 224, 184, 0.6) 100%);
+            border: 1px solid #d2b98b;
+            border-radius: 14px;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.6),
+                0 2px 6px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+
+        #riddle-box::before,
+        #riddle-box::after {
+            content: "";
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            height: 6px;
+            background: radial-gradient(circle, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+        }
+        #riddle-box::before { top: -6px; }
+        #riddle-box::after { bottom: -6px; }
+
+        #riddle-text {
+            font-size: clamp(1rem, 1.1vw + 0.8rem, 1.4rem);
+            margin: 0;
+            line-height: 1.4;
+            white-space: pre-wrap; /* preserve enters/spaces from design */
+            text-align: center;
+            font-family: "Agas", "Alef", Arial, sans-serif;
+        }
+
+        #status {
+            font-size: clamp(0.8rem, 0.8vw + 0.6rem, 1rem);
+            color: #555;
+        }
+
+        #controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        #search-bar {
+            display: flex;
+            flex: 1;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #search-input {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: clamp(0.8rem, 0.7vw + 0.6rem, 1rem);
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 6px 12px;
+            font-size: clamp(0.8rem, 0.7vw + 0.6rem, 1rem);
+            cursor: pointer;
+            border-radius: 999px;
+            border: 1px solid #ccc;
+            background: #ffffff;
+        }
+
+        /* Map takes all remaining space */
+        #map {
+            flex: 1;
+            min-height: 0;   /* important for flexbox on mobile */
+        }
+
+        /* Popup for messages */
+        #popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        #popup-box {
+            background: #ffffff;
+            padding: 16px 20px;
+            border-radius: 12px;
+            max-width: 320px;
+            width: 80%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #popup-message {
+            margin-bottom: 12px;
+            font-size: clamp(0.9rem, 0.8vw + 0.6rem, 1.1rem);
+        }
+        #popup-close {
+            padding: 6px 16px;
+        }
+
+        /* Celebration overlay */
+        #celebration-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        #celebration-box {
+            background: linear-gradient(135deg, #ffe27a, #ff9a8b);
+            padding: 24px 28px;
+            border-radius: 20px;
+            max-width: 360px;
+            width: 85%;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            color: #4a2c0b;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        #celebration-title {
+            font-size: clamp(1.3rem, 1.2vw + 1rem, 1.7rem);
+            margin-bottom: 8px;
+        }
+        #celebration-text {
+            font-size: clamp(0.9rem, 0.9vw + 0.7rem, 1.1rem);
+            margin-bottom: 14px;
+            white-space: pre-line; /* respect newline characters in treasure message */
+        }
+        #celebration-close {
+            padding: 8px 18px;
+            font-size: clamp(0.9rem, 0.8vw + 0.7rem, 1rem);
+            cursor: pointer;
+            border-radius: 999px;
+            border: none;
+            background: #fff3c4;
+        }
+        /* Confetti circles */
+        .confetti {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+        .confetti.c1 { width: 14px; height: 14px; background: #ff6b6b; top: 10px; left: 20px; }
+        .confetti.c2 { width: 10px; height: 10px; background: #ffd93d; top: 40px; right: 30px; }
+        .confetti.c3 { width: 18px; height: 18px; background: #6bcB77; bottom: 20px; left: 40px; }
+        .confetti.c4 { width: 12px; height: 12px; background: #4d96ff; bottom: 30px; right: 50px; }
+        #treasure-emoji {
+            font-size: clamp(2.4rem, 2vw + 2rem, 3.2rem);
+            margin-bottom: 6px;
+        }
+        /* ---------- Mobile-specific tweaks ---------- */
+        @media (max-width: 600px) {
+            #top-bar {
+                padding: 10px 10px;
+            }
+            #controls-row {
+                gap: 6px;
+            }
+            button {
+                padding: 6px 10px;
+            }
+        }
+
+        /* Guide character overlay */
+        #guide-wrapper {
+            position: fixed;
+            bottom: 0;
+            right: 2%;
+            width: clamp(240px, 48vw, 480px);
+            height: clamp(300px, 63vw, 300px);
+            pointer-events: none; /* avoid blocking map clicks */
+            z-index: 20; /* sit above map/controls */
+            transform: translateX(-100vw); /* start far to the left */
+            transition: transform 4000ms ease-out; /* arrive in ~3s, video continues afterwards */
+        }
+
+        #guide-wrapper.guide-arrived {
+            transform: translateX(0);
+        }
+
+        .guide-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+            border-radius: 14px;
+            background: transparent;
+            transition: opacity 120ms ease;
+        }
+
+        .guide-video.guide-active {
+            opacity: 1;
+        }
+
+        @media (max-width: 600px) {
+            #guide-wrapper {
+                width: clamp(140px, 48vw, 240px);
+                height: clamp(180px, 54vw, 340px);
+                right: 4%;
+                bottom: 0.5%;
+            }
+        }
+</style>
+</head>
+
+<body>
+<div class="lang-toggle">
+    <button type="button" data-lang-toggle="he">עברית</button>
+    <button type="button" data-lang-toggle="en">English</button>
+</div>
+<img id="site-logo" src="{{ url_for('static', filename='assets/logos/RoiAndNa_logo.png') }}">
+<div id="guide-wrapper" aria-hidden="true">
+    <video id="guide-video-primary" class="guide-video guide-active" preload="auto" muted playsinline></video>
+    <video id="guide-video-buffer" class="guide-video" preload="auto" muted playsinline></video>
+</div>
+<div id="container">
+    <div id="top-bar">
+        <div id="riddle-panel">
+            <div id="riddle-box"><div id="riddle-text" data-riddle-id="{{ start_riddle_id }}">{{ start_riddle_text }}</div></div>
+        </div>
+        <div id="status">
+            לחצו על המפה כדי לבחור מקום, ואז לחצו על <b>„זה הניחוש שלי”</b>.
+        </div>
+
+        <div id="controls-row">
+            <div id="search-bar">
+                <input id="search-input" type="text" placeholder="חיפוש מקום (עיר, רחוב, נקודה)…">
+                <button id="search-button" class="btn-metal btn-silver">חפש</button>
+            </div>
+            <button id="guess-button" class="btn-metal btn-blue">זה הניחוש שלי</button>
+            <button id="riddle-toggle" class="btn-metal btn-silver" type="button">הצג חידה</button>
+        </div>
+    </div>
+
+<div id="map"></div>
+</div>
+
+<script>
+    window.SUCCESS_SOUNDS = {{ success_sounds_json | safe }};
+</script>
+<!-- Popup (messages) -->
+<div id="popup-overlay">
+    <div id="popup-box">
+        <div id="popup-message"></div>
+        <button id="popup-close" class="btn-metal btn-silver">אישור</button>
+    </div>
+</div>
+
+<!-- Celebration (treasure found) -->
+<div id="celebration-overlay">
+    <div id="celebration-box">
+        <div class="confetti c1"></div>
+        <div class="confetti c2"></div>
+        <div class="confetti c3"></div>
+        <div class="confetti c4"></div>
+        <div id="treasure-emoji">🏆🏆</div>
+        <div id="celebration-title">מצאתם את המטמון!</div>
+        <div id="celebration-text">כל הכבוד, פתרתם את כל החידות והגעתם למקום הסודי.</div>
+        <button id="celebration-close" class="btn-metal btn-gold">סיום</button>
+    </div>
+</div>
+
+<!-- Confetti library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<script src="{{ url_for('static', filename='main.js') }}"></script>
+<script src="{{ url_for('static', filename='translate.js') }}"></script>
+
+{{ google_maps_script("initMap") }}
+
+</body>
+</html>

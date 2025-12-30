@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>משחק מציאת המטמון</title>
+
+    <!-- Make layout adapt to phone/desktop -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/shared.css') }}">
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Ankolb", Arial, sans-serif;
+            overflow: hidden; /* prevents scrollbars during animation */
+        }
+
+        /* FULL SCREEN ANIMATED BACKGROUND */
+        body {
+            height: 100vh;
+            width: 100vw;
+
+            background-image: url("{{ url_for('static', filename='assets/images/cover.png') }}");
+            background-repeat: no-repeat;
+            background-size: 120% 120%;   /* slight zoom for smooth panning */
+            background-position: 0% 50%;
+
+            animation: pan-background 18s ease-in-out infinite alternate;
+
+            /* Layout: center the content */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* BACKGROUND ANIMATION */
+        @keyframes pan-background {
+            0%   { background-position: 0% 45%; }
+            50%  { background-position: 100% 55%; }
+            100% { background-position: 0% 45%; }
+        }
+
+        /* Intro video overlay */
+        #intro-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 700ms ease;
+            cursor: pointer; /* indicate click-to-play */
+        }
+
+        #intro-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #intro-overlay.fade-out {
+            opacity: 0;
+        }
+
+
+        /* MAIN CARD (content box) */
+        #card {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(4px); /* subtle glass effect */
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            padding: clamp(16px, 3vw, 28px);
+            max-width: 540px;
+            width: min(90vw, 540px);
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+
+        #title {
+            font-size: clamp(1.6rem, 1.2vw + 1.2rem, 2.1rem);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        #subtitle {
+            font-size: 1rem; /* will be adjusted in JS to fit width */
+            margin-bottom: 16px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        #image-placeholder {
+            width: 100%;
+            height: clamp(160px, 30vh, 230px);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            margin-bottom: 18px;
+            background: #fafafa;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+
+        #image-placeholder span {
+            font-size: clamp(0.85rem, 0.6vw + 0.7rem, 1rem);
+            line-height: 1.5;
+        }
+
+        #buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .main-btn {
+            padding: 8px 18px;
+            border-radius: 999px;
+            min-width: 130px;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+
+        /* On very small phones, stack things nicely */
+        @media (max-width: 480px) {
+            #card {
+                border-radius: 0; /* option: full width card feeling */
+                max-width: 100%;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="lang-toggle">
+    <button type="button" data-lang-toggle="he">עברית</button>
+    <button type="button" data-lang-toggle="en">English</button>
+</div>
+<div id="intro-overlay">
+    <video id="intro-video" playsinline>
+        <source src="{{ url_for('static', filename='assets/videos/Intro_video.mp4') }}" type="video/mp4">
+        הדפדפן שלך אינו תומך בניגון וידאו.
+    </video>
+</div>
+<div id="card">
+    <div id="title">{{ landing_title }}</div>
+    <div id="subtitle">{{ landing_subtitle|replace('\n', '<br>')|safe }}</div>
+
+    <div id="image-placeholder">
+        <img src="{{ url_for('static', filename='assets/logos/RoiAndNa_logo.png') }}" 
+            alt="Game Logo"
+            style="max-width: 100%; max-height: 100%; object-fit: contain;">
+    </div>
+
+    <div id="buttons-row">
+        <button id="start-btn" class="main-btn btn-metal btn-blue" onclick="location.href='/game'">
+            🎮 התחלת משחק
+        </button>
+        <button id="instructions-btn" class="main-btn btn-metal btn-gold" onclick="location.href='/instructions'">
+            📜 הוראות
+        </button>
+        <button id="design-btn" class="main-btn btn-metal btn-silver" onclick="location.href='/design'">
+            🛠️ עריכה
+        </button>
+    </div>
+</div>
+
+<script>
+    // Fit subtitle text so the longest line stays on one line without overflow
+    (function() {
+        const subtitleEl = document.getElementById("subtitle");
+        const cardEl = document.getElementById("card");
+        if (!subtitleEl || !cardEl) return;
+
+        const fit = () => {
+            const minPx = 14;
+            const maxPx = 28;
+            let size = maxPx;
+            subtitleEl.style.fontSize = `${size}px`;
+            // shrink until the content fits the available width (no wrapped last word)
+            while (size > minPx && subtitleEl.scrollWidth > subtitleEl.clientWidth) {
+                size -= 1;
+                subtitleEl.style.fontSize = `${size}px`;
+            }
+        };
+
+        window.addEventListener("resize", fit);
+        fit();
+    })();
+
+    (function() {
+        const overlay = document.getElementById("intro-overlay");
+        const video = document.getElementById("intro-video");
+        if (!overlay || !video) return;
+
+        // If this is a full reload, forget the skip so the intro shows again.
+        try {
+            const nav = performance.getEntriesByType("navigation")[0];
+            if (nav && nav.type === "reload") {
+                localStorage.removeItem("introSeen");
+            }
+        } catch (e) {}
+
+        const hideOverlay = () => {
+            if (overlay.classList.contains("fade-out")) return;
+            overlay.classList.add("fade-out");
+            video.pause();
+            try {
+                localStorage.setItem("introSeen", "true");
+            } catch (e) {}
+            overlay.addEventListener("transitionend", () => {
+                overlay.style.display = "none";
+            }, { once: true });
+        };
+
+        // If intro was already seen (e.g., returning from other pages), skip it.
+        try {
+            if (localStorage.getItem("introSeen") === "true") {
+                overlay.style.display = "none";
+                video.pause();
+                return;
+            }
+        } catch (e) {}
+
+        video.addEventListener("ended", hideOverlay);
+
+        // Click to start with sound; fade out automatically when it ends
+        let started = false;
+        overlay.style.cursor = "pointer";
+        overlay.title = "לחצו כדי להתחיל את הסרטון";
+
+        overlay.addEventListener("click", () => {
+            if (started) return;
+            started = true;
+            overlay.style.cursor = "default";
+            overlay.title = "";
+            video.muted = false;
+            video.play().catch(() => {
+                // If playback fails, allow another click attempt
+                started = false;
+                overlay.style.cursor = "pointer";
+                overlay.title = "לחצו כדי להתחיל את הסרטון";
+            });
+        });
+    })();
+</script>
+<script src="{{ url_for('static', filename='translate.js') }}"></script>
+</body>
+</html>

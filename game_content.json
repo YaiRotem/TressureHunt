@@ -1,0 +1,55 @@
+{
+  "riddles": [
+    {
+      "id": 0,
+      "text": "כל רמז, כל צעד, כל תחנה בקו\nהובילו אל רגע שאותו הלב שאף אליו\nמקום שבו שניים הופכים לאחד\nומתחיל מסע חיים לעולמי עד\nאיפה מסתיים החיפוש הארוך\nוחופה תיפתח עם הינומה ארוכה כמו שרוך?",
+      "lat": 31.92586,
+      "lng": 34.82716,
+      "tolerance_m": 200.0
+    }
+  ],
+  "landing": {
+    "headline": "חפש את המטמון",
+    "subtitle": "רועי ונתנאלה היקרים,\nהיום אתם יוצאים למסע קטן, שמחבר בין הרגעים, המקומות והצלילים שחיברו בינכם.\nבכל נקודה במפה מחכה לכם רמז קטן, שיזכיר לכם עוד חלק מהסיפור המיוחד שלכם.\nסמכו אחד על השניה, הקשיבו ללב ולמוסיקה, והמשיכו בעקבות הרמזים...\nהתחנה האחרונה שלכם היא לא רק מקום, היא התחלה של חיים משותפים.\nבהצלחה! תהנו מהדרך!",
+    "ending_title": "התראות",
+    "treasure_message": "🎉רועי ונתנאלה היקרים,\nהמסע שלכם הוכיח שכשהלב יודע את הדרך הכל מסתדר.\nעברתם יחד דרך מוסיקה, לימודים, צבא,אתגרים, שמחות וזיכרונות. וכל תחנה הובילה אתכם אל המקום שבו אתם בוחרים זה בזו מחדש.\n\nמברכים אתכם באהבה גדולה ובאין סוף רגעים יפים יחד",
+    "success_messages": [
+      {
+        "text": "פגעתם בול בפוני!",
+        "sound": "success1.m4a"
+      },
+      {
+        "text": "כל הכבוד, תשובה מושלמת!",
+        "sound": "success2.m4a"
+      },
+      {
+        "text": "יפה מאוד! מצאתם את המקום המדויק!",
+        "sound": "success3.m4a"
+      },
+      {
+        "text": "מעולה! אתם ממש על זה!",
+        "sound": "success4.m4a"
+      },
+      {
+        "text": "קולעים למטרה כמו מקצוענים!",
+        "sound": "success5.m4a"
+      },
+      {
+        "text": "ניחוש מצוין - ממש בול במקום!",
+        "sound": "success6.m4a"
+      },
+      {
+        "text": "אלופים! הגעתם לנקודה המדויקת!",
+        "sound": "success7.m4a"
+      },
+      {
+        "text": "וואו! איזה דיוק!",
+        "sound": "success8.m4a"
+      },
+      {
+        "text": "תשובה נהדרת, ממש זוג מנצח!",
+        "sound": "success9.m4a"
+      }
+    ]
+  }
+}
