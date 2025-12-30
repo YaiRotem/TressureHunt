@@ -1,0 +1,132 @@
+/* GLOBAL LOGO POSITION */
+#site-logo {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;        /* keep it away from top bars/buttons */
+    width: 120px;
+    height: auto;
+    z-index: 10;
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    #site-logo {
+        width: 90px;   /* smaller on phones to reduce overlap */
+        bottom: 10px;
+        left: 10px;
+    }
+}
+
+/* Reusable metallic buttons */
+.btn-metal {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid #7a828c;
+    background: linear-gradient(145deg, #f6f8fb, #cfd6df);
+    color: #1f2b35;
+    cursor: pointer;
+    font-size: clamp(0.9rem, 0.7vw + 0.7rem, 1.05rem);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        0 6px 14px rgba(0, 0, 0, 0.08);
+    transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.btn-metal:hover {
+    background: linear-gradient(145deg, #ffffff, #d9e0e7);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        0 3px 8px rgba(0, 0, 0, 0.18),
+        0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.btn-metal:active {
+    transform: translateY(1px);
+    box-shadow:
+        inset 0 1px 2px rgba(0, 0, 0, 0.15),
+        0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* Tinted metallic variants */
+.btn-metal.btn-blue {
+    background: linear-gradient(140deg, #8fc0ff, #4a7ed1);
+    border-color: #3563a6;
+    color: #0f2642;
+}
+
+.btn-metal.btn-gold {
+    background: linear-gradient(140deg, #fdf1b5, #d7b84f);
+    border-color: #b89a3e;
+    color: #3c2c0d;
+}
+
+.btn-metal.btn-silver {
+    background: linear-gradient(145deg, #f2f4f7, #cfd6df);
+    border-color: #7a828c;
+    color: #1f2b35;
+}
+
+/* GLOBAL FONTS (example) */
+@font-face {
+    font-family: "Alef";
+    src: url("../assets/fonts/Alef-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Latet Bold";
+    src: url("../assets/fonts/Latet_Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Ankolb";
+    src: url("../assets/fonts/Ankolb.TTF") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Agas";
+    src: url("../assets/fonts/Agas.TTF") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: "Alef", Arial, sans-serif;
+}
+
+:root[lang="en"] {
+    font-size: 92%;
+}
+
+/* Language toggle (shared) */
+.lang-toggle {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 9999;
+}
+
+.lang-toggle button {
+    padding: 6px 12px;
+    border-radius: 14px;
+    border: 1px solid #c4c9d1;
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 78px;
+}
+
+.lang-toggle button.active {
+    background: linear-gradient(145deg, #4d96ff, #7fb2ff);
+    color: #0f2642;
+    border-color: #376fbc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Hide Google Translate UI clutter */
